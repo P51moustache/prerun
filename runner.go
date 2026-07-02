@@ -79,7 +79,7 @@ func (r *Runner) Run() error {
 		if cid != "" {
 			exec.Command(r.opts.Docker, "rm", "-f", cid).Run()
 		}
-		fmt.Fprintf(os.Stderr, "\n\x1b[33m⏹ interrupted (%v) — container cleaned up\x1b[0m\n", s)
+		fmt.Fprintf(os.Stderr, "\n\x1b[33m⏹ interrupted (%v), container cleaned up\x1b[0m\n", s)
 		os.Exit(130)
 	}()
 
@@ -243,14 +243,14 @@ func (r *Runner) pause(job *Job, cid string, step int) error {
 		return r.execStep(cid, r.opts.BreakExec)
 	}
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		fmt.Printf("  \x1b[33m⏸ (no TTY — attach manually: %s exec -it -w %s %s /bin/sh)\x1b[0m\n", r.opts.Docker, workdir, cid)
+		fmt.Printf("  \x1b[33m⏸ (no TTY; attach manually: %s exec -it -w %s %s /bin/sh)\x1b[0m\n", r.opts.Docker, workdir, cid)
 		return nil
 	}
-	fmt.Printf("  \x1b[33m⏸ opening shell inside the job container — exit to resume the pipeline\x1b[0m\n")
+	fmt.Printf("  \x1b[33m⏸ opening shell inside the job container (exit to resume the pipeline)\x1b[0m\n")
 	sh := r.docker("exec", "-it", "-w", workdir, cid, "/bin/sh")
 	sh.Stdin, sh.Stdout, sh.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := sh.Run(); err != nil {
-		fmt.Printf("  \x1b[33m⏸ shell exited (%v) — resuming\x1b[0m\n", err)
+		fmt.Printf("  \x1b[33m⏸ shell exited (%v), resuming\x1b[0m\n", err)
 	}
 	return nil
 }

@@ -30,7 +30,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Print(`prerun — run and debug your GitLab CI pipeline locally, before you push it
+	fmt.Print(`prerun: run and debug your GitLab CI pipeline locally, before you push it
 
 usage:
   prerun run [pipeline.yml] [flags]     defaults to .gitlab-ci.yml
