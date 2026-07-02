@@ -18,4 +18,4 @@ Include: your `.gitlab-ci.yml` (or a minimal repro), the full prerun output, `pr
 
 ## Good PRs
 
-The [README's "Not yet" table](README.md#whats-supported-v01--honest-subset) is the roadmap — anything in the right-hand column is fair game. Keep the project's one rule: **unsupported things fail loudly or warn loudly, never silently.** A PR that adds a feature also adds its tests.
+The [README's "Not yet" table](README.md#whats-supported-v01-honest-subset) is the roadmap: anything in the right-hand column is fair game. Keep the project's one rule: **unsupported things fail loudly or warn loudly, never silently.** A PR that adds a feature also adds its tests.
