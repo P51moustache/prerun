@@ -1,0 +1,26 @@
+stages: [build, test, package]
+
+build:app:
+  stage: build
+  script:
+    - mkdir -p dist
+    - echo "compiled-v1" > dist/app.bin
+  artifacts:
+    paths:
+      - dist/
+
+test:app:
+  stage: test
+  script:
+    - echo "testing against $(cat dist/app.bin)"
+    - test "$(cat dist/app.bin)" = "compiled-v1"
+
+package:app:
+  stage: package
+  needs: [build:app]
+  script:
+    - tar -czf app.tgz dist
+    - ls -la app.tgz
+  artifacts:
+    paths:
+      - app.tgz
