@@ -53,7 +53,7 @@ func (r *Runner) validateBreakpoint() error {
 }
 
 // setCurrent tracks the running container so the signal handler can clean it
-// up — without this, Ctrl-C during a long step would leak the container.
+// up; without this, Ctrl-C during a long step would leak the container.
 func (r *Runner) setCurrent(cid string) {
 	r.mu.Lock()
 	r.currentCID = cid
@@ -125,7 +125,7 @@ func (r *Runner) runJob(job *Job) error {
 	}
 	fmt.Printf("\n\x1b[1m[%s]\x1b[0m stage=%s image=%s\n", job.Name, job.Stage, image)
 
-	// Start an idle container we exec steps into — this is what makes
+	// Start an idle container we exec steps into; this is what makes
 	// step-level control (and breakpoints) possible.
 	out, err := r.docker("run", "-d", "--entrypoint", "", image, "sleep", "86400").Output()
 	if err != nil {

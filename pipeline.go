@@ -69,7 +69,7 @@ type Job struct {
 }
 
 // jobFields are the job-level keys prerun implements. Anything else on a job
-// is collected as a warning — silently dropping `rules:` and running the job
+// is collected as a warning; silently dropping `rules:` and running the job
 // unconditionally would be a correctness trap, not a missing feature.
 var jobFields = map[string]bool{
 	"stage": true, "image": true, "script": true,
@@ -155,7 +155,7 @@ func parsePipelineBytes(path string, raw []byte) (*Pipeline, []string, error) {
 		}
 		for _, ap := range job.Artifacts.Paths {
 			if strings.ContainsAny(ap, "*?[") {
-				return nil, nil, fmt.Errorf("job %q: artifact path %q uses a glob pattern, which is not supported yet — list explicit files/directories", key, ap)
+				return nil, nil, fmt.Errorf("job %q: artifact path %q uses a glob pattern, which is not supported yet; list explicit files/directories", key, ap)
 			}
 		}
 		jobOrder[key] = i
@@ -178,7 +178,7 @@ func parsePipelineBytes(path string, raw []byte) (*Pipeline, []string, error) {
 
 	// Validate needs/dependencies the way GitLab's linter would: every
 	// reference must name a defined job in a strictly earlier stage. This is
-	// also a security boundary — unvalidated names would flow into host
+	// also a security boundary: unvalidated names would flow into host
 	// filesystem paths (see artifact injection in runner.go).
 	byName := map[string]*Job{}
 	for _, j := range p.Jobs {

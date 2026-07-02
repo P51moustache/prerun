@@ -82,7 +82,7 @@ func runCmd(args []string) error {
 	}
 	if len(unsupported) > 0 {
 		fmt.Fprintf(os.Stderr, "\x1b[33m⚠ ignoring unsupported top-level keys: %s\x1b[0m\n", strings.Join(unsupported, ", "))
-		fmt.Fprintf(os.Stderr, "\x1b[33m  prerun v%s supports a documented subset of GitLab CI — see README\x1b[0m\n", version)
+		fmt.Fprintf(os.Stderr, "\x1b[33m  prerun v%s supports a documented subset of GitLab CI (see README)\x1b[0m\n", version)
 	}
 
 	if err := os.MkdirAll(*artifacts, 0o755); err != nil {
