@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 
 	"golang.org/x/term"
 )
@@ -24,13 +27,62 @@ type RunOptions struct {
 type Runner struct {
 	p    *Pipeline
 	opts RunOptions
+
+	mu         sync.Mutex
+	currentCID string
 }
 
 func NewRunner(p *Pipeline, opts RunOptions) *Runner {
 	return &Runner{p: p, opts: opts}
 }
 
+func (r *Runner) validateBreakpoint() error {
+	spec := r.opts.Breakpoint
+	if spec == "" {
+		return nil
+	}
+	name, step := parseBreakpoint(spec)
+	job := r.p.job(name)
+	if job == nil {
+		return fmt.Errorf("--break %q: no job named %q in this pipeline", spec, name)
+	}
+	if step < 1 || step > len(job.Script) {
+		return fmt.Errorf("--break %q: job %q has %d step(s); step must be 1..%d", spec, name, len(job.Script), len(job.Script))
+	}
+	return nil
+}
+
+// setCurrent tracks the running container so the signal handler can clean it
+// up — without this, Ctrl-C during a long step would leak the container.
+func (r *Runner) setCurrent(cid string) {
+	r.mu.Lock()
+	r.currentCID = cid
+	r.mu.Unlock()
+}
+
 func (r *Runner) Run() error {
+	if err := r.validateBreakpoint(); err != nil {
+		return err
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sig)
+	go func() {
+		s, ok := <-sig
+		if !ok {
+			return
+		}
+		r.mu.Lock()
+		cid := r.currentCID
+		r.mu.Unlock()
+		if cid != "" {
+			exec.Command(r.opts.Docker, "rm", "-f", cid).Run()
+		}
+		fmt.Fprintf(os.Stderr, "\n\x1b[33m⏹ interrupted (%v) — container cleaned up\x1b[0m\n", s)
+		os.Exit(130)
+	}()
+
 	fmt.Printf("→ %d stage(s), %d job(s)\n", len(r.usedStages()), len(r.p.Jobs))
 	for _, job := range r.p.Jobs {
 		if err := r.runJob(job); err != nil {
@@ -54,7 +106,12 @@ func (r *Runner) usedStages() []string {
 }
 
 func sanitize(name string) string {
-	return strings.NewReplacer(":", "__", "/", "__", " ", "_").Replace(name)
+	s := strings.NewReplacer(":", "__", "/", "__", "\\", "__", " ", "_").Replace(name)
+	// Never let a job name become a path component that escapes the store.
+	if s == "" || strings.Trim(s, ".") == "" {
+		return "job_" + s
+	}
+	return s
 }
 
 func (r *Runner) docker(args ...string) *exec.Cmd {
@@ -75,7 +132,11 @@ func (r *Runner) runJob(job *Job) error {
 		return fmt.Errorf("starting container from %s: %w (is your container runtime up, and the image available locally or pullable?)", image, stderrOf(err))
 	}
 	cid := strings.TrimSpace(string(out))
-	defer r.docker("rm", "-f", cid).Run()
+	r.setCurrent(cid)
+	defer func() {
+		r.setCurrent("")
+		r.docker("rm", "-f", cid).Run()
+	}()
 
 	if err := r.docker("exec", cid, "mkdir", "-p", workdir).Run(); err != nil {
 		return fmt.Errorf("preparing %s: %w", workdir, err)
@@ -134,25 +195,38 @@ func (r *Runner) execStep(cid, step string) error {
 		return err
 	}
 	sc := bufio.NewScanner(stdout)
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
 	for sc.Scan() {
 		fmt.Printf("  %s\n", sc.Text())
 	}
-	return cmd.Wait()
+	scanErr := sc.Err()
+	waitErr := cmd.Wait()
+	if waitErr != nil {
+		return waitErr
+	}
+	if scanErr != nil {
+		// Truncated output must never be mistaken for complete, successful output.
+		return fmt.Errorf("reading step output: %w", scanErr)
+	}
+	return nil
 }
 
-// breakpointHits: spec is "job" (break before step 1) or "job:N" (before step N).
-func (r *Runner) breakpointHits(jobName string, step int) bool {
-	spec := r.opts.Breakpoint
-	if spec == "" {
-		return false
-	}
-	name, stepSpec := spec, 1
+// parseBreakpoint: spec is "job" (break before step 1) or "job:N" (before
+// step N, 1-based). Job names may themselves contain ":".
+func parseBreakpoint(spec string) (string, int) {
 	if i := strings.LastIndex(spec, ":"); i > 0 {
 		if n, err := parseInt(spec[i+1:]); err == nil {
-			name, stepSpec = spec[:i], n
+			return spec[:i], n
 		}
 	}
+	return spec, 1
+}
+
+func (r *Runner) breakpointHits(jobName string, step int) bool {
+	if r.opts.Breakpoint == "" {
+		return false
+	}
+	name, stepSpec := parseBreakpoint(r.opts.Breakpoint)
 	return name == jobName && step == stepSpec
 }
 

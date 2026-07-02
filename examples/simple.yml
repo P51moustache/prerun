@@ -1,0 +1,13 @@
+stages: [build, test]
+build:
+  stage: build
+  script:
+    - mkdir -p dist
+    - echo "compiled-v1" > dist/app.bin
+  artifacts:
+    paths: [dist/]
+test:
+  stage: test
+  script:
+    - echo "testing against $(cat dist/app.bin)"
+    - test "$(cat dist/app.bin)" = "compiled-v1"
