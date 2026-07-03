@@ -9,7 +9,7 @@ No more `git commit -m "fix ci"` seances.
 The transcript below is the actual output of [`examples/simple.yml`](examples/simple.yml) (with `--break-exec 'ls dist/'` standing in for the interactive shell so it can run unattended; in a terminal, `--break test:2` drops you into a live `sh` inside the job container instead):
 
 ```
-$ prerun run --break test:2 --break-exec 'ls dist/'
+$ prerun run examples/simple.yml --break test:2 --break-exec 'ls dist/'
 → 2 stage(s), 2 job(s)
 
 [build] stage=build image=alpine:latest
@@ -32,7 +32,7 @@ $ prerun run --break test:2 --break-exec 'ls dist/'
 
 ## Install
 
-Requires Go 1.22+ and a container runtime (Docker, colima, podman, ...).
+Requires Go 1.25+ and a container runtime (Docker, colima, podman, ...). Older Go (1.21+) with the default `GOTOOLCHAIN=auto` fetches the right toolchain on its own.
 
 ```
 go install github.com/P51moustache/prerun@latest
